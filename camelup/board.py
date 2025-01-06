@@ -8,7 +8,7 @@ class Board:
     Manages the tiles and stacking of camels on those tiles.
     """
 
-    def __init__(self, track_length=16):
+    def __init__(self, track_length):
         """
         Initializes the Board.
 
@@ -17,7 +17,21 @@ class Board:
         """
         self.track_length = track_length
         # Each position is a list of camels (topmost last)
-        self.tiles = [[] for _ in range(self.track_length + 1)]
+        self.tiles = [[] for _ in range(track_length + 1)]
+
+    def initialize_camels(self, camels):
+        """
+        Initialize the board with camels at their starting positions.
+        Forward-moving camels start at 0, backward-moving camels start at position 17 (off-board).
+        """
+        self.tiles = [[] for _ in range(self.track_length + 1)]  # Reset tiles
+        
+        for camel in camels:
+            if camel.moves_backward:
+                camel.position = 17  # Start outside the track
+            else:
+                camel.position = 0
+                self.tiles[0].append(camel)
 
     def place_camel(self, camel, position=0):
         """
@@ -98,17 +112,24 @@ class Board:
 
     def display_board(self):
         """
-        Display the board in a horizontal line, showing all tiles and camels.
+        Display the board in a horizontal line, showing all tiles and camels with stacking order.
         """
-        # Increased tile_width to accommodate colored text
-        tile_width = 20  
+        tile_width = 20  # Increased to accommodate stacking symbols
         board_representation = []
 
         for pos in range(self.track_length + 1):
-            # Get camels on this tile and join their colored names
-            camels_on_tile = ', '.join(camel.colored_name() for camel in self.tiles[pos])
-            # Add padding after the position number
-            tile_str = f"[{pos:2d}: {camels_on_tile}]"
+            camels_on_tile = self.tiles[pos]
+            if len(camels_on_tile) > 1:
+                # Show stacking with arrows (bottom → top)
+                camel_stack = " → ".join(camel.colored_name() for camel in camels_on_tile)
+                tile_str = f"[{pos:2d}: {camel_stack}]"
+            elif len(camels_on_tile) == 1:
+                # Single camel, no arrows needed
+                tile_str = f"[{pos:2d}: {camels_on_tile[0].colored_name()}]"
+            else:
+                # Empty tile
+                tile_str = f"[{pos:2d}:     ]"
+            
             board_representation.append(tile_str)
 
         # Join all tile strings and print
@@ -121,3 +142,51 @@ class Board:
         Tiles are displayed from start (0) to finish (16) horizontally.
         """
         return self.display_board()
+
+    def move_camel(self, camel, steps):
+        """
+        Move a camel the specified number of steps.
+        
+        Args:
+            camel (Camel): The camel to move
+            steps (int): Number of steps to move
+        """
+        # Remove camel from current position
+        current_pos = camel.position
+        stack = self.tiles[current_pos]
+        camel_index = stack.index(camel)
+        moving_stack = stack[camel_index:]
+        self.tiles[current_pos] = stack[:camel_index]
+        
+        # Calculate new position
+        new_pos = min(current_pos + steps, self.track_length)
+        
+        # Update camel positions
+        for c in moving_stack:
+            c.position = new_pos
+        
+        # Add moving stack to new position
+        self.tiles[new_pos].extend(moving_stack)
+
+    def move_camel_initial_setup(self, camel, steps):
+        """
+        Move a single camel during initial setup, with stacking only if moving to an occupied position.
+        Handles both forward and backward moving camels.
+        """
+        # Remove camel from current position if it's on the board
+        if camel.position <= self.track_length:
+            self.tiles[camel.position].remove(camel)
+        
+        # Calculate new position based on direction
+        if camel.moves_backward:
+            # Start counting from position 17, so moving 1 step puts it at 16
+            new_pos = 17 - steps
+            new_pos = max(0, new_pos)  # Don't go below 0
+        else:
+            new_pos = steps
+        
+        # Update camel position
+        camel.position = new_pos
+        
+        # Add camel to new position (will stack on top if position is occupied)
+        self.tiles[new_pos].append(camel)
