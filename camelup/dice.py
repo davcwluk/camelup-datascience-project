@@ -5,13 +5,27 @@ class Dice:
     """
     Manages dice rolls for the Camel Up game.
     """
-
-    def __init__(self, die_faces=None):
-        # By default, standard Camel Up dice faces are [1, 2, 3]
-        self.die_faces = die_faces if die_faces is not None else [1, 2, 3]
-
+    def __init__(self):
+        # Regular dice for colored camels
+        self.colored_faces = [1, 2, 3]
+        # Separate dice for black and white initial setup
+        self.special_faces = [1, 2, 3]
+        # Combined dice for black/white during main game (only one moves per round)
+        self.bw_faces = [(1, 'White'), (2, 'White'), (3, 'White'),
+                        (1, 'Black'), (2, 'Black'), (3, 'Black')]
+        
     def roll(self):
-        """
-        Return a random face from the die.
-        """
-        return random.choice(self.die_faces)
+        """Generic roll for initial setup - uses colored dice faces"""
+        return random.choice(self.colored_faces)
+        
+    def roll_colored(self):
+        """Roll a regular colored dice"""
+        return random.choice(self.colored_faces)
+        
+    def roll_special_initial(self):
+        """Roll for initial black/white setup - returns steps only"""
+        return random.choice(self.special_faces)
+        
+    def roll_bw(self):
+        """Roll for black/white movement during main game"""
+        return random.choice(self.bw_faces)

@@ -190,3 +190,30 @@ class Board:
         
         # Add camel to new position (will stack on top if position is occupied)
         self.tiles[new_pos].append(camel)
+
+    def move_camel_with_stack(self, camel, steps):
+        """
+        Move a camel and all camels stacked on top of it.
+        """
+        current_pos = camel.position
+        stack = self.tiles[current_pos]
+        camel_index = stack.index(camel)
+        
+        # Get all camels from this camel up
+        moving_stack = stack[camel_index:]
+        # Keep only camels below this one
+        self.tiles[current_pos] = stack[:camel_index]
+        
+        # Calculate new position based on direction
+        if camel.moves_backward:
+            new_pos = current_pos - steps
+            new_pos = max(0, new_pos)
+        else:
+            new_pos = min(current_pos + steps, self.track_length)
+        
+        # Update positions for all moving camels
+        for c in moving_stack:
+            c.position = new_pos
+        
+        # Add moving stack to top of any existing camels at new position
+        self.tiles[new_pos].extend(moving_stack)
