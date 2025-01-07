@@ -7,6 +7,7 @@ from random import shuffle
 import random
 import os
 import platform
+from camelup.probability_calculator import ProbabilityCalculator
 
 def clear_screen():
     """Clear the terminal screen for both Windows and Unix-like systems"""
@@ -25,12 +26,23 @@ def check_winner(game):
 
 def play_round(game):
     """Handle a single round of dice drawing and movement"""
-    # Track available and used dice
     available_dice = ['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'BW']
     dice_rolled = 0
+    rolled_dice_history = []
+    calculator = ProbabilityCalculator(game)
     
     print("\nPress Enter to draw dice. Need to draw 5 dice to complete the round.")
-    while dice_rolled < 5:  # Continue until 5 dice have been rolled
+    while dice_rolled < 5:
+        # Display rolled dice history
+        display_rolled_dice(game, rolled_dice_history)
+        
+        # Calculate and show probabilities before each draw
+        if len(available_dice) > 1:  # Show probabilities when there are multiple dice left
+            print("\nPossible outcomes for next draw:")
+            outcomes, probabilities = calculator.calculate_possible_outcomes(available_dice)
+            for outcome in outcomes:
+                print(outcome)
+            
         input(f"\nPress Enter to draw dice ({dice_rolled}/5 drawn)...")
         
         # Randomly select and remove a dice
@@ -40,23 +52,40 @@ def play_round(game):
         if selected_dice == 'BW':
             steps, color = game.dice.roll_bw()
             camel = next(c for c in game.camels if c.name == color)
+            rolled_dice_history.append((color, steps))
         else:
             steps = game.dice.roll_colored()
             camel = next(c for c in game.camels if c.name == selected_dice)
+            rolled_dice_history.append((selected_dice, steps))
         
         print(f"Drew {camel.colored_name()} dice - rolled {steps}")
         game.board.move_camel_with_stack(camel, steps)
         game.board.display_board()
+        
+        dice_rolled += 1
+        
+        # Display final dice history after last dice is rolled
+        if dice_rolled == 5:
+            display_rolled_dice(game, rolled_dice_history)
         
         # Check for winner after each move
         winner = check_winner(game)
         if winner:
             return winner
             
-        dice_rolled += 1
-            
     print(f"\nRound complete! All {dice_rolled} dice have been rolled.")
     return None
+
+def display_rolled_dice(game, rolled_dice_history):
+    """Display the history of rolled dice in a formatted way"""
+    if not rolled_dice_history:
+        print("No dice rolled yet")
+        return
+        
+    print("\nDice rolled this round:")
+    for dice_color, steps in rolled_dice_history:
+        camel = next(c for c in game.camels if c.name == dice_color)
+        print(f"• {camel.colored_name()} rolled {steps}")
 
 def main():
     clear_screen()  # Clear screen at start

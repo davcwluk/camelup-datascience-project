@@ -6,11 +6,11 @@ class Dice:
     Manages dice rolls for the Camel Up game.
     """
     def __init__(self):
-        # Regular dice for colored camels
-        self.colored_faces = [1, 2, 3]
+        # Regular dice for colored camels (each value appears twice)
+        self.colored_faces = [1, 1, 2, 2, 3, 3]
         # Separate dice for black and white initial setup
         self.special_faces = [1, 2, 3]
-        # Combined dice for black/white during main game (only one moves per round)
+        # Combined dice for black/white during main game
         self.bw_faces = [(1, 'White'), (2, 'White'), (3, 'White'),
                         (1, 'Black'), (2, 'Black'), (3, 'Black')]
         

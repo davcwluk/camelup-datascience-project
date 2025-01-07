@@ -7,13 +7,21 @@ class Camel:
 
     def __init__(self, name, color=None, moves_backward=False):
         self.name = name
-        self.position = 0 if not moves_backward else 16  # Start at 16 for backward-moving camels
+        self.position = 0 if not moves_backward else 16
         self.color = color
         self.moves_backward = moves_backward
 
     def __repr__(self):
         direction = "backward" if self.moves_backward else "forward"
         return f"Camel({self.name}, pos={self.position}, {direction})"
+
+    def __eq__(self, other):
+        if not isinstance(other, Camel):
+            return False
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
     def colored_name(self):
         """
