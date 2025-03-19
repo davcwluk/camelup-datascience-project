@@ -8,6 +8,7 @@ import random
 import os
 import platform
 from camelup.probability_calculator import ProbabilityCalculator
+from camelup.ev_calculator import ExpectedValueCalculator
 
 def clear_screen():
     """Clear the terminal screen for both Windows and Unix-like systems"""
@@ -27,7 +28,8 @@ def check_winner(game):
 def play_round(game):
     """Handle a single round of dice drawing and movement"""
     available_dice = ['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'BW']
-    dice_rolled = 0
+    available_dice = [d for d in available_dice if d not in game.moved_this_leg]
+    dice_rolled = len(game.moved_this_leg)
     rolled_dice_history = []
     calculator = ProbabilityCalculator(game)
     
@@ -39,7 +41,7 @@ def play_round(game):
         # Calculate and show probabilities before each draw
         if len(available_dice) > 1:  # Show probabilities when there are multiple dice left
             print("\nPossible outcomes for next draw:")
-            outcomes, probabilities = calculator.calculate_possible_outcomes(available_dice)
+            outcomes, _ = calculator.calculate_possible_outcomes(available_dice)
             for outcome in outcomes:
                 print(outcome)
             
@@ -62,6 +64,7 @@ def play_round(game):
         game.board.move_camel_with_stack(camel, steps)
         game.board.display_board()
         
+        game.moved_this_leg.add(selected_dice)
         dice_rolled += 1
         
         # Display final dice history after last dice is rolled
@@ -74,6 +77,7 @@ def play_round(game):
             return winner
             
     print(f"\nRound complete! All {dice_rolled} dice have been rolled.")
+    game.reset_leg()
     return None
 
 def display_rolled_dice(game, rolled_dice_history):
@@ -84,8 +88,22 @@ def display_rolled_dice(game, rolled_dice_history):
         
     print("\nDice rolled this round:")
     for dice_color, steps in rolled_dice_history:
-        camel = next(c for c in game.camels if c.name == dice_color)
-        print(f"• {camel.colored_name()} rolled {steps}")
+        try:
+            if 'color' in locals():
+                camel = next(c for c in game.camels if c.name == color)
+            else:
+                camel = next(c for c in game.camels if c.name == dice_color)
+            print(f"• {camel.colored_name()} rolled {steps}")
+        except StopIteration:
+            print(f"• {dice_color} rolled {steps}")
+
+def display_action_evs(game):
+    """Display available actions and their expected values"""
+    ev_calculator = ExpectedValueCalculator(game)
+    ev_messages = ev_calculator.display_action_evs()
+    
+    for message in ev_messages:
+        print(message)
 
 def main():
     clear_screen()  # Clear screen at start
@@ -149,6 +167,10 @@ def main():
 
     # After initial setup is complete
     print("\nStarting main game phase!")
+    
+    # Calculate and display EV for the starting state
+    print("\nAvailable actions and their expected values:")
+    display_action_evs(game)
     
     round_number = 1
     while True:

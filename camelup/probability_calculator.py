@@ -3,10 +3,12 @@ from typing import List, Dict
 from collections import defaultdict
 from .models import Camel
 from .board import Board
+from .ev_calculator import ExpectedValueCalculator
 
 class ProbabilityCalculator:
     def __init__(self, game):
         self.game = game
+        self.ev_calculator = ExpectedValueCalculator(game)
         
     def calculate_possible_outcomes(self, available_dice: List[str]) -> tuple[List[str], Dict[str, float]]:
         """
@@ -51,8 +53,15 @@ class ProbabilityCalculator:
                        f"{prob_percentage:.1f}% probability to be leading")
             outcomes.append(prob_msg)
         
-        return outcomes, leading_counts
-
+        # Add player action options and their expected values
+        outcomes.extend(self.ev_calculator.display_action_evs())
+            
+        probabilities = {}
+        for camel_name, count in leading_counts.items():
+            probabilities[camel_name] = count / total_scenarios
+            
+        return outcomes, probabilities
+        
     def _simulate_move(self, dice_color: str, steps: int, special_color: str = None) -> Camel:
         """
         Simulate a single dice roll and movement to determine the leading camel.
