@@ -18,6 +18,8 @@ class Board:
         self.track_length = track_length
         # Each position is a list of camels (topmost last)
         self.tiles = [[] for _ in range(track_length + 1)]
+        # Spectator tile manager will be injected
+        self.spectator_tile_manager = None
 
     def initialize_camels(self, camels):
         """
@@ -194,6 +196,7 @@ class Board:
     def move_camel_with_stack(self, camel, steps):
         """
         Move a camel and all camels stacked on top of it.
+        Handles spectator tile effects.
         """
         current_pos = camel.position
         stack = self.tiles[current_pos]
@@ -211,9 +214,36 @@ class Board:
         else:
             new_pos = min(current_pos + steps, self.track_length)
         
-        # Update positions for all moving camels
+        # Update positions for all moving camels FIRST
         for c in moving_stack:
             c.position = new_pos
         
         # Add moving stack to top of any existing camels at new position
         self.tiles[new_pos].extend(moving_stack)
+        
+        # Check for spectator tile effect AFTER landing
+        spectator_payout_info = None
+        if self.spectator_tile_manager and not camel.moves_backward:
+            tile = self.spectator_tile_manager.get_tile_at_position(new_pos)
+            if tile:
+                # Apply spectator tile movement modifier AFTER landing
+                modifier = tile.get_movement_modifier()
+                if modifier != 0:
+                    # Remove the moving stack from current position
+                    self.tiles[new_pos] = [c for c in self.tiles[new_pos] if c not in moving_stack]
+                    
+                    # Calculate new position after spectator tile effect
+                    spectator_new_pos = min(new_pos + modifier, self.track_length)
+                    spectator_new_pos = max(spectator_new_pos, 0)
+                    
+                    # Update positions again for spectator effect
+                    for c in moving_stack:
+                        c.position = spectator_new_pos
+                    
+                    # Add to new position (may stack again)
+                    self.tiles[spectator_new_pos].extend(moving_stack)
+                    new_pos = spectator_new_pos  # Update for return value
+                    
+                    spectator_payout_info = (tile.player_name, 1)  # Owner gets 1 EP
+        
+        return spectator_payout_info  # Return info for payout

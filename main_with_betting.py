@@ -1,6 +1,7 @@
-# main.py
+# main_with_betting.py
 
-from camelup.game import CamelUpGame
+from camelup.game_manager import GameManager
+from camelup.player import HumanPlayer, BotPlayer
 from camelup.models import Camel
 from colorama import init, Fore
 from random import shuffle
@@ -87,16 +88,50 @@ def display_rolled_dice(game, rolled_dice_history):
         camel = next(c for c in game.camels if c.name == dice_color)
         print(f"• {camel.colored_name()} rolled {steps}")
 
-def main():
-    clear_screen()  # Clear screen at start
-    # Initialize colorama for color support
-    init(autoreset=True)
-
-    # Create game with 7 camels (5 forward + 2 backward)
-    game = CamelUpGame(num_camels=7, track_length=16)
+def setup_players():
+    """Setup players for the game"""
+    print("=== PLAYER SETUP ===")
+    players = []
     
-    # Add the backward-moving camels
-    game.camels = [
+    # Get number of human players
+    while True:
+        try:
+            num_humans = int(input("Number of human players (0-4): "))
+            if 0 <= num_humans <= 4:
+                break
+            print("Please enter 0-4 players")
+        except ValueError:
+            print("Please enter a valid number")
+    
+    # Add human players
+    for i in range(num_humans):
+        name = input(f"Enter name for player {i+1}: ") or f"Player {i+1}"
+        players.append(HumanPlayer(name))
+    
+    # Get number of bot players
+    remaining_slots = 4 - num_humans
+    if remaining_slots > 0:
+        while True:
+            try:
+                num_bots = int(input(f"Number of bot players (0-{remaining_slots}): "))
+                if 0 <= num_bots <= remaining_slots:
+                    break
+                print(f"Please enter 0-{remaining_slots} bot players")
+            except ValueError:
+                print("Please enter a valid number")
+        
+        # Add bot players with different strategies
+        strategies = ['random', 'probability', 'conservative', 'aggressive']
+        for i in range(num_bots):
+            strategy = strategies[i % len(strategies)]
+            name = f"Bot-{strategy.capitalize()}"
+            players.append(BotPlayer(name, strategy=strategy))
+    
+    return players
+
+def initialize_camels():
+    """Initialize game camels"""
+    camels = [
         # Forward-moving camels
         Camel("Red", Fore.RED),
         Camel("Blue", Fore.BLUE),
@@ -107,19 +142,17 @@ def main():
         Camel("Black", Fore.WHITE, moves_backward=True),  # Using WHITE for visibility
         Camel("White", Fore.LIGHTWHITE_EX, moves_backward=True)
     ]
+    return camels
+
+def run_initial_setup(game_manager):
+    """Run the initial dice setup phase"""
+    game = game_manager.game
     
-    # Initialize board with all camels
-    game.board.initialize_camels(game.camels)
-
-    print("Starting Camel Up Game!\n")
-    game.board.display_board()
-
-    input("\nPress Enter to draw and roll dice from the bag...")
+    print("\nDrawing and rolling dice for initial camel positions...")
+    input("Press Enter to start initial setup...")
     
     camel_order = list(game.camels)
     shuffle(camel_order)
-    
-    print("\nDrawing and rolling dice from the bag...")
     
     # Create a list of all dice to be rolled
     dice_to_roll = []
@@ -144,30 +177,66 @@ def main():
         print(f"Drew {camel.colored_name()} dice - moves {steps} steps {direction}")
         game.board.display_board()
     
-    print("\nAll dice drawn and rolled. Initial positions set:")
+    print("\nInitial positions set! Starting main game...")
     game.board.display_board()
 
-    # After initial setup is complete
-    print("\nStarting main game phase!")
+def main():
+    clear_screen()
+    # Initialize colorama for color support
+    init(autoreset=True)
     
-    round_number = 1
-    while True:
-        print(f"\n=== Round {round_number} ===")
-        winner = play_round(game)
+    print("🐪 CAMEL UP - Data Science Edition 🐪")
+    print("=====================================")
+    
+    # Setup players
+    players = setup_players()
+    if not players:
+        print("No players selected. Exiting...")
+        return
+    
+    # Create game manager
+    game_manager = GameManager(players)
+    
+    # Initialize camels
+    camels = initialize_camels()
+    
+    # Initialize game and handle initial betting
+    game_manager.initialize_game(camels)
+    
+    # Display initial board
+    print("\nInitial board state:")
+    game_manager.game.board.display_board()
+    
+    # Run initial camel positioning
+    run_initial_setup(game_manager)
+    
+    # Main game loop
+    print("\n" + "="*50)
+    print("STARTING MAIN GAME WITH BETTING!")
+    print("="*50)
+    
+    while not game_manager.game_finished:
+        winner = game_manager.play_round()
         
         if winner:
-            print("\nGAME OVER!")
-            print(f"\nThe winner is {winner.colored_name()}!")
-            game.board.display_board()
             break
             
-        print("\nPress Enter to start next round, or type 'q' to quit...")
-        user_input = input()
-        if user_input.lower() == 'q':
-            break
-            
-        round_number += 1
-        
+        # Check if players want to continue
+        if any(isinstance(p, HumanPlayer) for p in players):
+            print("\nPress Enter to continue to next round, or 'q' to quit...")
+            user_input = input()
+            if user_input.lower() == 'q':
+                break
+    
+    # Display final statistics
+    stats = game_manager.get_game_statistics()
+    print("\n" + "="*50)
+    print("GAME STATISTICS")
+    print("="*50)
+    print(f"Rounds played: {stats['rounds_played']}")
+    print(f"Total bets placed: {stats['total_bets_placed']}")
+    print(f"Total money wagered: ${stats['total_money_wagered']}")
+    
     print("\nThanks for playing!")
 
 if __name__ == "__main__":
