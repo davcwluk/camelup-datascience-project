@@ -1,7 +1,9 @@
 # turn_manager.py
 
 from .dice import Dice
+from .probability_calculator import ProbabilityCalculator
 import random
+import sys
 
 class TurnManager:
     """Manages turn-based gameplay with 4 player actions"""
@@ -14,8 +16,10 @@ class TurnManager:
         self.pyramid_ticket_manager = pyramid_ticket_manager
         self.game_manager = game_manager  # For accessing bank
         self.dice = Dice()
+        self.probability_calculator = ProbabilityCalculator(game)
         self.leg_ended = False
         self.last_pyramid_player = None  # Track who took the last pyramid ticket
+        self.leg_dice_history = []  # Track dice rolled this leg
         
         # Determine starting player (youngest player according to rulebook)
         self.starting_player_index = self._determine_starting_player()
@@ -153,13 +157,19 @@ class TurnManager:
         # Track this player as the last pyramid ticket taker
         self.last_pyramid_player = player.name
         
+        # Get available dice for rolling
+        available_dice_colors = self.dice.get_available_dice()
+        
         # Roll dice to move a camel
         dice_result = self.dice.roll_random_die()
         if not dice_result:
             return False, "No dice available to roll"
         
         die_color, steps = dice_result
-        print(f"{player.name} took pyramid ticket and rolled {die_color} die: {steps}")
+        print(f"\n{player.name} took pyramid ticket and rolled {die_color} die: {steps}")
+        
+        # Add to dice history for this leg
+        self.leg_dice_history.append((die_color, steps))
         
         # Find the camel to move
         camel_to_move = None
@@ -176,6 +186,13 @@ class TurnManager:
             
             print(f"{camel_to_move.colored_name()} moved from position {old_position} to {new_position}")
             
+            # Display updated board
+            print(f"\n=== UPDATED BOARD ===")
+            self.game.board.display_board()
+            
+            # Display dice rolled this leg
+            self._display_leg_dice_history()
+            
             # Handle spectator tile payout from bank
             if spectator_payout:
                 tile_owner, payout = spectator_payout
@@ -187,10 +204,10 @@ class TurnManager:
                         print(f"{tile_owner} receives {payout} EP from spectator tile (bank pays)!")
                         break
             
-            # Check if leg ended (5 dice have been rolled, 1 remains in pyramid)
-            if len(self.dice.used_dice) == 5:
+            # Check if leg ended (all 6 dice have been rolled - 5 colored + 1 BW)
+            if len(self.dice.used_dice) == 6:
                 self.leg_ended = True
-                print("5 dice have been rolled - leg ends!")
+                print("\nLEG ENDED: All dice have been rolled - leg ends!")
             
             return True, f"Took pyramid ticket, moved {die_color} camel {steps} steps (1 EP at leg end)"
         
@@ -214,6 +231,16 @@ class TurnManager:
         if not actions:
             print("No actions available - skipping turn")
             return []
+        
+        # Show probability analysis if Action 3 (pyramid ticket) is available
+        pyramid_action_available = any(action['id'] == 3 for action in actions)
+        if pyramid_action_available:
+            available_dice_colors = self.dice.get_available_dice()
+            if available_dice_colors:  # Show probabilities if any dice are available
+                print(f"\n=== PROBABILITY ANALYSIS (if you take pyramid ticket) ===")
+                print(f"Available dice: {available_dice_colors}")
+                self._display_dice_probabilities(available_dice_colors)
+                print("=" * 60)
         
         print("Available actions:")
         for action in actions:
@@ -249,8 +276,11 @@ class TurnManager:
             
             return self._execute_selected_action(player, selected_action)
             
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             return False, "Invalid input"
+        except KeyboardInterrupt:
+            print("\nGame interrupted by user. Exiting...")
+            sys.exit(0)
     
     def _process_bot_turn(self, player, actions):
         """Process bot player turn automatically"""
@@ -311,6 +341,9 @@ class TurnManager:
                 return available_bets[choice]
         except ValueError:
             pass
+        except KeyboardInterrupt:
+            print("\nGame interrupted by user. Exiting...")
+            sys.exit(0)
         return None
     
     def _get_spectator_tile_choice(self, available_positions):
@@ -327,6 +360,9 @@ class TurnManager:
                 return position, side
         except ValueError:
             pass
+        except KeyboardInterrupt:
+            print("\nGame interrupted by user. Exiting...")
+            sys.exit(0)
         return None, None
     
     def _get_race_bet_choice(self, winner_bets, loser_bets):
@@ -343,4 +379,30 @@ class TurnManager:
                 return all_bets[choice]
         except ValueError:
             pass
+        except KeyboardInterrupt:
+            print("\nGame interrupted by user. Exiting...")
+            sys.exit(0)
         return None
+    
+    def _display_dice_probabilities(self, available_dice_colors):
+        """Display probability calculations for available dice"""
+        outcomes, leading_counts = self.probability_calculator.calculate_possible_outcomes(available_dice_colors)
+        for outcome in outcomes:
+            print(outcome)
+    
+    def _display_leg_dice_history(self):
+        """Display the history of dice rolled this leg"""
+        if not self.leg_dice_history:
+            print("\nNo dice rolled yet this leg")
+            return
+        
+        print(f"\nDice rolled this leg:")
+        for dice_color, steps in self.leg_dice_history:
+            camel = next(c for c in self.game.camels if c.name == dice_color)
+            print(f"• {camel.colored_name()} rolled {steps}")
+        
+        dice_remaining = 5 - len(self.leg_dice_history)
+        if dice_remaining > 0:
+            print(f"Dice remaining in pyramid: {dice_remaining}")
+        else:
+            print("All dice have been rolled - leg complete")

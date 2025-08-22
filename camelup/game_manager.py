@@ -196,6 +196,8 @@ class GameManager:
         # Reset dice for new leg
         self.turn_manager.dice.reset()
         self.turn_manager.leg_ended = False
+        self.turn_manager.leg_dice_history = []  # Reset dice history for new leg
+        
         
         # Display current standings
         self._display_player_standings()
@@ -214,8 +216,9 @@ class GameManager:
         return winner
     
     def _execute_turn_based_leg(self):
-        """Execute turn-based leg until all 5 dice are rolled"""
+        """Execute turn-based leg until all dice are rolled"""
         turn_count = 0
+        
         
         while not self.turn_manager.leg_ended and not self.game.board.is_finished():
             turn_count += 1

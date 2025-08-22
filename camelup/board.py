@@ -90,14 +90,18 @@ class Board:
 
     def is_finished(self):
         """
-        Check if any camel has reached or passed the last tile.
+        Check if any forward-moving camel has reached or passed the last tile (finish line).
 
         Returns:
             bool: True if the race is over, False otherwise.
         """
-        for tile_index in range(self.track_length, -1, -1):
-            if self.tiles[tile_index]:
-                return True
+        # Check if any forward-moving camel has reached the finish line (last tile)
+        finish_line = self.track_length - 1  # Position 15 for track_length=16
+        if self.tiles[finish_line]:
+            # Check if there's at least one forward-moving camel at the finish line
+            for camel in self.tiles[finish_line]:
+                if not camel.moves_backward:
+                    return True
         return False
 
     def get_winning_camel(self):
